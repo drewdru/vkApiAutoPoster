@@ -1,0 +1,7 @@
+<RCC>
+    <qresource prefix="/img">
+        <file alias="icon.png">1437242308_green_pepper.png</file>
+        <file alias="icon.exit.png">Exit-512.png</file>
+        <file alias="icon.settings.png">Settings-L-icon.png</file>
+    </qresource>
+</RCC>
