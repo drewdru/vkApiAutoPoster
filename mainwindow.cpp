@@ -63,7 +63,7 @@ ui(new Ui::MainWindow)
     connect(ui->movOwnerID,SIGNAL(currentIndexChanged(int)),ui->postOwnerId,SLOT(setCurrentIndex(int)));
     connect(ui->postponeOwnerId,SIGNAL(currentIndexChanged(int)),ui->postOwnerId,SLOT(setCurrentIndex(int)));
     connect(ui->postponeOwnerId,SIGNAL(currentIndexChanged(int)),ui->movOwnerID,SLOT(setCurrentIndex(int)));
-    //Запрос доступа
+    //Authorization
 	BaseURL.setUrl("https://oauth.vk.com/authorize?"
         "client_id=4916113&"
         "scope=photos,wall,groups,offline&"
@@ -92,7 +92,7 @@ void MainWindow::on_exit_clicked()
 
 void MainWindow::on_webView_urlChanged(const QUrl &arg1)
 {
-	//Если пользователь залогинен
+	//if user logged
 	if (arg1.url().split("?")[0].contains("blank.html"))
 	{
 		ui->webView->hide();
@@ -128,11 +128,11 @@ void MainWindow::on_autoPostButton_clicked()
 	trIcon->show();
 	trIcon->showMessage("Автопост",\
 		"Подождите до завершения");
-	//Получение access токена
+	//Get access token
 	QUrl url = ui->webView->url();
 	accessToken = url.toString().split("#access_token=")[1]\
 		.split("&")[0];
-	//Получение списка альбомов
+	//Get albums list
 	url.setUrl("https://api.vk.com/method/photos.getAlbums?version=5.35"
 		"&owner_id="+ui->postOwnerId->currentData().toString()\
 		+"&access_token="+accessToken);
@@ -145,7 +145,7 @@ void MainWindow::on_autoPostButton_clicked()
 
 void MainWindow::recieveAlbums(QString str)
 {
-	//получение чёрного списка альбомов
+	//Get a black list of albums 
 	QList<size_t> BlackListAid;
 	QSqlQuery q;
 	q.exec("SELECT aid FROM blacklist;");
@@ -155,7 +155,7 @@ void MainWindow::recieveAlbums(QString str)
 	while(q.next())
 		BlackListAid.append(q.value("aid").toInt());
 
-	//Получение списка альбомов для выборки изображений
+	//Get a list of albums 
 	QJsonDocument jsonResponse = QJsonDocument::fromJson(str.toUtf8());
 	QJsonObject jsonObject = jsonResponse.object();
 	QJsonArray jsonArray = jsonObject["response"].toArray();
@@ -166,7 +166,7 @@ void MainWindow::recieveAlbums(QString str)
 		if(!BlackListAid.contains(obj["aid"].toInt()))
 			aidList.append(obj["aid"].toInt());
 	}
-	//Получение списка изображений
+	//Get a list of images 
 	lastAlbum = aidList.at(qrand() % aidList.size());
 	QUrl url;
 	url.setUrl("https://api.vk.com/method/photos.get?version=5.35&"
@@ -182,14 +182,14 @@ void MainWindow::recieveAlbums(QString str)
 
 void MainWindow::recieveImages(QString str)
 {
-	//Получение списка изображений, которые уже публиковались
+	//Get a list of published images
 	QStringList LastPid;
 	QSqlQuery q;
     q.exec("SELECT media FROM lastmedia;");
 	while(q.next())
 		LastPid.append(q.value("media").toString());
 
-	//Получение изображений, которые могут быть опубликованы
+	//Get a list of images
 	QJsonDocument jsonResponse = QJsonDocument::fromJson(str.toUtf8());
 	QJsonObject jsonObject = jsonResponse.object();
 	QJsonArray jsonArray = jsonObject["response"].toArray();
@@ -208,7 +208,7 @@ void MainWindow::recieveImages(QString str)
 			imagesURLList.append(testImage);
 		}
 	}
-	//Если в альбоме не осталось не опубликованных изображений
+
 	if (imagesList.length() == 0)
 	{
 		q.exec("INSERT INTO lockedalbums(aid) VALUES('"+QString::number(lastAlbum)+"');");
@@ -232,11 +232,11 @@ void MainWindow::recieveImages(QString str)
 		on_autoPostButton_clicked();
 		return;
 	}
-	//Сохранение pid последнего опубликованного изображения
+	//Save a pid of last published image
     q.exec("INSERT INTO lastmedia(media,ownerid) VALUES('"+pid\
         +"','"+ui->postOwnerId->currentData().toString()+"');");
-	//опубликовать запись
-	///publish_date	дата публикации записи в формате unixtime. Если параметр указан, публикация записи будет отложена до указанного времени.
+	//Post
+	//publish_date is dateTime for post {unixtime}.
 	QUrl url;
 	url.setUrl("https://api.vk.com/method/wall.post?owner_id="\
 		+ui->postOwnerId->currentData().toString()\
@@ -264,20 +264,20 @@ void MainWindow::recievePostID(QString str)
 		emit postponePost();
 		return;
 	}
-	///TODO: получение id последней публикации
+	///TODO: get an id of last post
 }
 
 void MainWindow::on_movButton_clicked()
 {
-	//свернуть в трей
+	//minimize to system tray
 	this->hide();
-	trIcon->show();  //отображаем объект
+	trIcon->show();
 	trIcon->showMessage("Перемещение","Подождите до завершения перемещения");
 	//получение access токена
 	QUrl url = ui->webView->url();
 	accessToken = url.toString().split("#access_token=")[1]\
 		.split("&")[0];
-	//получение списка изображений, которые требуется переместить
+	//Get a list of images
     url.setUrl("https://api.vk.com/method/photos.get?owner_id="\
         +ui->movOwnerID->currentData().toString()\
         +"&album_id="+ui->movAlbumID->text()\
@@ -290,14 +290,14 @@ void MainWindow::on_movButton_clicked()
 
 void MainWindow::recieveMovImages(QString str)
 {
-	//перемещение изображений
+	//Move images from album to album
 	QJsonDocument jsonResponse = QJsonDocument::fromJson(str.toUtf8());
 	QJsonObject jsonObject = jsonResponse.object();
 	QJsonArray jsonArray = jsonObject["response"].toArray();
 	foreach (const QJsonValue & pidValue, jsonArray)
 	{
 		QJsonObject obj = pidValue.toObject();
-		//перемещение текущего изображения
+		//Move image
 		QString q = "https://api.vk.com/method/photos.move?";
 		q.append("owner_id="+ui->movOwnerID->currentData().toString()\
 			+"&target_album_id="+ui->target_album_idEdit->text()\
@@ -305,13 +305,11 @@ void MainWindow::recieveMovImages(QString str)
 			+"&access_token="+accessToken);
 		QUrl url;
 		url.setUrl(q);
-		//задержка на 6 секунд (требование к частоте запросов)
 		QMutex mutex;
 		mutex.lock();
 		mutex.tryLock(6000);
 		mutex.unlock();
 	}
-	//перемещение завершено
 	ui->webView->setUrl(BaseURL);
 	this->showMinimized();
 	this->trIcon->hide();
