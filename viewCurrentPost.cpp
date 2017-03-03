@@ -31,7 +31,7 @@ void viewCurrentPost::recieveCurrentImage(QString pid, QString mediaURL)
 }
 void viewCurrentPost::on_toBlackListButton_clicked()
 {
-	//Сохранение pid последнего опубликованного изображения
+	//Save a pid of last posted image
 	QSqlQuery q;
 	q.exec("INSERT INTO medialacklist(media) VALUES('"+pid+"');");
 	this->reject();
